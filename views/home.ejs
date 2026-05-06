@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ClearTab — Share expenses, not arguments.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0a0a;
+      --surface:   #111111;
+      --border:    #1e1e1e;
+      --border-lit:#2e2e2e;
+      --text:      #e8e8e0;
+      --muted:     #555550;
+      --accent:    #c8f060;
+      --accent-dim:#8faa40;
+      --danger:    #ff5f5f;
+      --mono:      'DM Mono', monospace;
+      --sans:      'Syne', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    #cursor {
+      position: fixed;
+      width: 10px; height: 10px;
+      background: var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: width .2s, height .2s, opacity .2s;
+      mix-blend-mode: difference;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      opacity: .025;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,10,.85);
+      backdrop-filter: blur(12px);
+    }
+    .logo {
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -.02em;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .logo span { color: var(--accent); }
+
+    /* HERO */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      padding-top: 4.5rem;
+      z-index: 1;
+    }
+    .hero-left {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 5rem 3rem 5rem 2rem;
+      border-right: 1px solid var(--border);
+    }
+    .tag {
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .tag::before {
+      content: '';
+      display: inline-block;
+      width: 20px; height: 1px;
+      background: var(--accent);
+    }
+    h1 {
+      font-size: clamp(2.8rem, 5vw, 5rem);
+      font-weight: 800;
+      line-height: 1.0;
+      letter-spacing: -.035em;
+      margin-bottom: 1.5rem;
+    }
+    h1 em { font-style: normal; color: var(--accent); }
+    .hero-sub {
+      font-family: var(--mono);
+      font-size: .9rem;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 420px;
+      margin-bottom: 3rem;
+    }
+    .stats { display: flex; gap: 2.5rem; }
+    .stat-num {
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .stat-label {
+      font-family: var(--mono);
+      font-size: .7rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: .2rem;
+    }
+
+    /* AUTH CARD */
+    .hero-right {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 5rem 2rem;
+      background: var(--surface);
+    }
+    .auth-card { width: 100%; max-width: 380px; }
+
+    .auth-progress {
+      display: flex; gap: .4rem;
+      margin-bottom: 2rem;
+    }
+    .auth-progress span {
+      height: 2px; flex: 1;
+      background: var(--border-lit);
+      border-radius: 2px;
+    }
+    .auth-progress span.done { background: var(--accent); }
+
+    .auth-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      margin-bottom: .4rem;
+    }
+    .auth-sub {
+      font-family: var(--mono);
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    .error-msg {
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--danger);
+      margin-bottom: .85rem;
+    }
+
+    label {
+      display: block;
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .5rem;
+    }
+    input[type="email"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border-lit);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: .95rem;
+      padding: .85rem 1rem;
+      border-radius: 2px;
+      outline: none;
+      transition: border-color .2s;
+      margin-bottom: 1.25rem;
+    }
+    input[type="email"]:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      font-family: var(--mono);
+      font-size: .82rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .9rem 1rem;
+      border-radius: 2px;
+      cursor: none;
+      font-weight: 500;
+      transition: background .2s, transform .1s;
+    }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-primary:active { transform: scale(.98); }
+
+    .auth-note {
+      font-family: var(--mono);
+      font-size: .68rem;
+      color: var(--muted);
+      margin-top: 1.25rem;
+      line-height: 1.6;
+    }
+
+    /* TICKER */
+    .ticker-wrap {
+      overflow: hidden;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 0;
+      z-index: 1; position: relative;
+    }
+    .ticker {
+      display: flex; gap: 3rem;
+      white-space: nowrap;
+      animation: ticker 18s linear infinite;
+      width: max-content;
+    }
+    .ticker span {
+      font-family: var(--mono);
+      font-size: .75rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .ticker span b { color: var(--accent); font-weight: 400; }
+    @keyframes ticker {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* FEATURES */
+    .features {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .feature-item {
+      padding: 3rem 2rem;
+      border-right: 1px solid var(--border);
+    }
+    .feature-item:last-child { border-right: none; }
+    .feature-icon { font-size: 1.4rem; margin-bottom: 1rem; display: block; }
+    .feature-title { font-size: 1rem; font-weight: 700; letter-spacing: -.01em; margin-bottom: .5rem; }
+    .feature-desc { font-family: var(--mono); font-size: .78rem; color: var(--muted); line-height: 1.7; }
+
+    /* FOOTER */
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    footer p { font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+    footer p a { color: var(--muted); text-decoration: none; }
+    footer p a:hover { color: var(--accent); }
+
+    /* ANIMATIONS */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(18px);
+      animation: fadeUp .6s forwards;
+    }
+    .fade-up:nth-child(1) { animation-delay: .1s; }
+    .fade-up:nth-child(2) { animation-delay: .2s; }
+    .fade-up:nth-child(3) { animation-delay: .3s; }
+    .fade-up:nth-child(4) { animation-delay: .4s; }
+    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-left { border-right: none; border-bottom: 1px solid var(--border); padding: 3rem 1.5rem; }
+      .hero-right { padding: 3rem 1.5rem; }
+      .features { grid-template-columns: 1fr; }
+      .feature-item { border-right: none; border-bottom: 1px solid var(--border); }
+      .feature-item:last-child { border-bottom: none; }
+      h1 { font-size: 2.5rem; }
+    }
+    @media (max-width: 480px) {
+      nav { padding: 1rem; }
+      .hero-left, .hero-right { padding: 2.5rem 1rem; }
+      .stats { gap: 1.5rem; }
+      footer { flex-direction: column; gap: .75rem; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="cursor"></div>
+
+<nav>
+  <a href="/" class="logo">ClearTab<span>.</span></a>
+</nav>
+
+<section class="hero" id="auth">
+
+  <!-- LEFT -->
+  <div class="hero-left">
+    <div class="tag fade-up">Expense sharing, rebuilt</div>
+    <h1 class="fade-up">Share expenses,<br>not <em>arguments.</em></h1>
+    <p class="hero-sub fade-up">
+      Track what you owe and what you're owed across trips, roommates, and friends — no spreadsheet required.
+    </p>
+    <div class="stats fade-up">
+      <div class="stat-item">
+        <div class="stat-num">₹0</div>
+        <div class="stat-label">Forever free</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">∞</div>
+        <div class="stat-label">Groups</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">1-tap</div>
+        <div class="stat-label">Login via OTP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT — AUTH -->
+  <div class="hero-right">
+    <div class="auth-card">
+
+      <div class="auth-progress">
+        <span class="done"></span>
+        <span></span>
+      </div>
+
+      <div class="auth-title">Welcome back.</div>
+      <div class="auth-sub">No password. Just your email.</div>
+
+      <% if (typeof error !== 'undefined' && error) { %>
+        <p class="error-msg"><%= error %></p>
+      <% } %>
+
+      <form action="/auth/send-otp" method="POST">
+        <label for="email">Email address</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="you@example.com"
+          autocomplete="email"
+          value="<%= typeof email !== 'undefined' ? email : '' %>"
+          required
+        />
+        <button type="submit" class="btn-primary">Send OTP →</button>
+      </form>
+
+      <p class="auth-note">We'll send a 6-digit code. No account needed — we'll create one automatically.</p>
+    </div>
+  </div>
+
+</section>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker">
+    <span>Split by percentage <b>✦</b></span>
+    <span>Track group balances <b>✦</b></span>
+    <span>Settle with UPI <b>✦</b></span>
+    <span>Recurring bills <b>✦</b></span>
+    <span>Trip expenses <b>✦</b></span>
+    <span>No passwords <b>✦</b></span>
+    <span>Roommate tracking <b>✦</b></span>
+    <span>Works offline <b>✦</b></span>
+    <span>Split by percentage <b>✦</b></span>
+    <span>Track group balances <b>✦</b></span>
+    <span>Settle with UPI <b>✦</b></span>
+    <span>Recurring bills <b>✦</b></span>
+    <span>Trip expenses <b>✦</b></span>
+    <span>No passwords <b>✦</b></span>
+    <span>Roommate tracking <b>✦</b></span>
+    <span>Works offline <b>✦</b></span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features">
+  <div class="feature-item">
+    <span class="feature-icon">⬡</span>
+    <div class="feature-title">Groups &amp; one-offs</div>
+    <p class="feature-desc">Create groups for trips or flats. Add one-time splits with anyone — no invite needed.</p>
+  </div>
+  <div class="feature-item">
+    <span class="feature-icon">◈</span>
+    <div class="feature-title">Smart settle-up</div>
+    <p class="feature-desc">Minimises transactions automatically. One payment clears multiple debts across a group.</p>
+  </div>
+  <div class="feature-item">
+    <span class="feature-icon">◎</span>
+    <div class="feature-title">OTP-only login</div>
+    <p class="feature-desc">No passwords, no OAuth dance. Just email + 6-digit code. Works on any device, always.</p>
+  </div>
+</section>
+
+<footer>
+  <p>© 2025 ClearTab — made with intent.</p>
+  <p><a href="#">Privacy</a> &nbsp;·&nbsp; <a href="#">Terms</a> &nbsp;·&nbsp; <a href="#">GitHub</a></p>
+</footer>
+
+<script>
+  const cur = document.getElementById('cursor');
+  document.addEventListener('mousemove', e => {
+    cur.style.left = e.clientX + 'px';
+    cur.style.top  = e.clientY + 'px';
+  });
+  document.querySelectorAll('button, a, input').forEach(el => {
+    el.addEventListener('mouseenter', () => { cur.style.width = '22px'; cur.style.height = '22px'; cur.style.opacity = '.5'; });
+    el.addEventListener('mouseleave', () => { cur.style.width = '10px'; cur.style.height = '10px'; cur.style.opacity = '1'; });
+  });
+</script>
+</body>
+</html>

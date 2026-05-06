@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ClearTab — Enter your code</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0a0a;
+      --surface:   #111111;
+      --border:    #1e1e1e;
+      --border-lit:#2e2e2e;
+      --text:      #e8e8e0;
+      --muted:     #555550;
+      --accent:    #c8f060;
+      --accent-dim:#8faa40;
+      --danger:    #ff5f5f;
+      --mono:      'DM Mono', monospace;
+      --sans:      'Syne', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      cursor: none;
+    }
+
+    #cursor {
+      position: fixed;
+      width: 10px; height: 10px;
+      background: var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: width .2s, height .2s, opacity .2s;
+      mix-blend-mode: difference;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      opacity: .025;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    nav {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 1.25rem;
+      letter-spacing: -.02em;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .logo span { color: var(--accent); }
+
+    .main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem;
+      position: relative; z-index: 1;
+    }
+
+    .auth-card {
+      width: 100%;
+      max-width: 400px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      border-radius: 4px;
+    }
+
+    .auth-progress {
+      display: flex; gap: .4rem;
+      margin-bottom: 2rem;
+    }
+    .auth-progress span {
+      height: 2px; flex: 1;
+      background: var(--border-lit);
+      border-radius: 2px;
+    }
+    .auth-progress span.done { background: var(--accent); }
+
+    .auth-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      margin-bottom: .4rem;
+    }
+    .auth-sub {
+      font-family: var(--mono);
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+      word-break: break-all;
+    }
+    .auth-sub b { color: var(--text); font-weight: 400; }
+
+    .error-msg {
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--danger);
+      margin-bottom: .85rem;
+    }
+
+    label {
+      display: block;
+      font-family: var(--mono);
+      font-size: .72rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .5rem;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border-lit);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      letter-spacing: .4em;
+      text-align: center;
+      padding: .85rem 1rem;
+      border-radius: 2px;
+      outline: none;
+      transition: border-color .2s;
+      margin-bottom: 1.25rem;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); letter-spacing: .1em; font-size: 1rem; }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      font-family: var(--mono);
+      font-size: .82rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .9rem 1rem;
+      border-radius: 2px;
+      cursor: none;
+      font-weight: 500;
+      transition: background .2s, transform .1s;
+    }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-primary:active { transform: scale(.98); }
+
+    .btn-ghost {
+      display: block;
+      width: 100%;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border-lit);
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: .75rem 1rem;
+      border-radius: 2px;
+      cursor: none;
+      margin-top: .6rem;
+      text-align: center;
+      text-decoration: none;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+    .auth-note {
+      font-family: var(--mono);
+      font-size: .68rem;
+      color: var(--muted);
+      margin-top: 1.25rem;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 480px) {
+      nav { padding: 1rem; }
+      .auth-card { padding: 1.75rem 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="cursor"></div>
+
+<nav>
+  <a href="/" class="logo">ClearTab<span>.</span></a>
+</nav>
+
+<main class="main">
+  <div class="auth-card">
+
+    <div class="auth-progress">
+      <span class="done"></span>
+      <span class="done"></span>
+    </div>
+
+    <div class="auth-title">Check your inbox.</div>
+    <div class="auth-sub">Code sent to <b><%= email %></b></div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <p class="error-msg"><%= error %></p>
+    <% } %>
+
+    <form action="/auth/verify-otp" method="POST">
+      <input type="hidden" name="email" value="<%= email %>" />
+
+      <label for="otp">6-digit code</label>
+      <input
+        type="text"
+        id="otp"
+        name="otp"
+        inputmode="numeric"
+        maxlength="6"
+        placeholder="——————"
+        autocomplete="one-time-code"
+        autofocus
+        required
+      />
+
+      <button type="submit" class="btn-primary">Verify &amp; Continue →</button>
+    </form>
+
+    <a href="/" class="btn-ghost">← Change email</a>
+
+    <p class="auth-note">Didn't get it? Check spam or go back and retry. Code expires in 10 minutes.</p>
+  </div>
+</main>
+
+<script>
+  const cur = document.getElementById('cursor');
+  document.addEventListener('mousemove', e => {
+    cur.style.left = e.clientX + 'px';
+    cur.style.top  = e.clientY + 'px';
+  });
+  document.querySelectorAll('button, a, input').forEach(el => {
+    el.addEventListener('mouseenter', () => { cur.style.width = '22px'; cur.style.height = '22px'; cur.style.opacity = '.5'; });
+    el.addEventListener('mouseleave', () => { cur.style.width = '10px'; cur.style.height = '10px'; cur.style.opacity = '1'; });
+  });
+</script>
+</body>
+</html>
