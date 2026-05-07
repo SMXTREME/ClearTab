@@ -28,18 +28,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(
-    session({
-        secret: process.env.SECRET,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            secure: process.env.NODE_ENV === 'PROD',
-            httpOnly: true,
-            maxAge: 1000 * 60 * 60 * 24,
-        },
-    }),
-);
 
 await mongoose.connect(MONGODB_URI).catch((err) => console.log(err));
 console.log('Clear Tab Connected to DB');

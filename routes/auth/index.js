@@ -1,46 +1,95 @@
 import validator from 'validator';
 
-import { Router } from 'express';
+import { json, Router } from 'express';
 
+import redis from '../../redis.js';
+import User from '../../schema/user.js';
 import jwt from '../../functions/jwt.js';
+import sendOtpEmail from '../../functions/otpMailing.js';
+import sendWelcomeEmail from '../../functions/welcomeMailer.js';
 
 const authRouter = Router();
 
-authRouter.post('/auth/send-otp', async (req, res) => {
+authRouter.post('/send-otp', async (req, res) => {
     try {
         const email = req.body.email;
-
-        if (!email) return res.redirect('/?error=Email is required');
+        if (!email) {
+            const requiredEmailQuery = { email, error: 'Email is required' };
+            const requiredEmailQueryToken = await jwt.write(requiredEmailQuery);
+            res.redirect(`/?token=${requiredEmailQueryToken}`);
+            return;
+        }
 
         const trimmedEmail = String(email).trim();
-
         if (!validator.isEmail(trimmedEmail)) {
-            return res.redirect('/?error=Invalid email address');
+            const validEmailQuery = { email, error: 'Email is required' };
+            const validEmailQueryToken = await jwt.write(validEmailQuery);
+            res.redirect(`/?token=${validEmailQueryToken}`);
+            return;
         }
 
         const normalizedEmail = validator.normalizeEmail(trimmedEmail);
 
-        const otpQuery = { email, error: undefined };
-
+        const otpQuery = { email: normalizedEmail, error: undefined };
         const token = await jwt.write(otpQuery);
-
         res.redirect(`/otp?token=${token}`);
+
+        const OTP = Math.floor(100000 + Math.random() * 900000);
+        await redis.set(normalizedEmail, JSON.stringify({ otp: OTP, tries: 0 }), 'EX', 300);
+        await sendOtpEmail(email, OTP);
     } catch (err) {
         console.log('Error in /auth/send-otp:\n', err);
     }
 });
 
-authRouter.post('/auth/verify-otp', async (req, res) => {
+authRouter.post('/verify-otp', async (req, res) => {
     try {
-        const otp = '123456';
         const email = req.body.email;
+        const otpByUser = req.body.otp;
+        let redisData = await redis.get(email);
 
-        console.log(req.body.otp);
+        const otpQuery = { email, error: 'Invalid or expired code.' };
 
-        if (email === req.body.email && otp === req.body.otp) {
+        const token = await jwt.write(otpQuery);
+
+        if (!redisData) return res.redirect(`/otp?token=${token}`);
+
+        redisData = await JSON.parse(redisData);
+
+        let { otp: actualOtp, tries: attempts } = redisData;
+
+        if (otpByUser === `${actualOtp}` && attempts < 3) {
+            let user = await User.findOne({ email });
+            let newUserMail = false;
+
+            if (!user) {
+                user = await new User({
+                    email,
+                    userName: email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_'),
+                })
+                    .save()
+                    .catch((err) => {
+                        console.log('Error Saving New User:\n', err);
+                        throw err;
+                    });
+                newUserMail = true;
+            }
+
             res.redirect('/dashboard');
+
+            if (newUserMail) {
+                await sendWelcomeEmail(user.email, user.userName);
+            }
         } else {
-            res.redirect(`/otp?email=${email}&error=Invalid or expired code.`);
+            if (attempts + 1 <= 3) {
+                await redis.set(
+                    email,
+                    JSON.stringify({ otp: actualOtp, tries: attempts + 1 }),
+                    'KEEPTTL',
+                );
+            }
+
+            res.redirect(`/otp?token=${token}`);
         }
     } catch (err) {
         console.log('Error in /auth/verify-otp:\n', err);

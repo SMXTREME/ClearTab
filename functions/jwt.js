@@ -3,7 +3,7 @@ import jsonwebtoken from 'jsonwebtoken';
 const SECRET = process.env.SECRET;
 
 export async function read(token) {
-    return await JSON.parse(jsonwebtoken.verify(token, SECRET));
+    return await jsonwebtoken.verify(token, SECRET);
 }
 
 export async function write(query) {
