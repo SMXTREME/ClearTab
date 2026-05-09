@@ -1,13 +1,14 @@
 {
     "name": "cleartab",
-    "version": "0.0.1",
-    "description": "",
+    "version": "1.0.0",
+    "description": "ClearTab is a simple group expense sharing web application built with Express, EJS, MongoDB, and Redis. It supports passwordless email login via OTP, group creation, expense splitting, settlement tracking, and basic user settings.",
     "main": "index.js",
     "scripts": {
-        "dev": "npx nodemon"
+        "dev": "npx nodemon",
+        "start": "node ."
     },
     "keywords": [],
-    "author": "",
+    "author": "SMXTREME",
     "license": "ISC",
     "type": "module",
     "dependencies": {

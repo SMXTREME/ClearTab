@@ -22,7 +22,7 @@ authRouter.post('/send-otp', async (req, res) => {
 
         const trimmedEmail = String(email).trim();
         if (!validator.isEmail(trimmedEmail)) {
-            const validEmailQuery = { email, error: 'Email is required' };
+            const validEmailQuery = { email, error: 'Please enter a valid email address' };
             const validEmailQueryToken = await jwt.write(validEmailQuery);
             res.redirect(`/?token=${validEmailQueryToken}`);
             return;
@@ -47,11 +47,10 @@ authRouter.post('/send-otp', async (req, res) => {
         await redis.set(normalizedEmail, JSON.stringify({ otp: OTP, tries: 0 }), 'EX', 300);
         const data = await sendOtpEmail(email, OTP);
 
-        console.log(data);
-
         res.redirect(`/otp?token=${token}`);
     } catch (err) {
-        console.log('Error in /auth/send-otp:\n', err);
+        console.error('Error in /auth/send-otp:\n', err);
+        res.status(500).send('Something went wrong. Please try again.');
     }
 });
 
@@ -116,6 +115,7 @@ authRouter.post('/verify-otp', async (req, res) => {
         }
     } catch (err) {
         console.log('Error in /auth/verify-otp:\n', err);
+        res.status(500).send('Something went wrong. Please try again.');
     }
 });
 

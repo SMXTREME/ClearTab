@@ -3,7 +3,6 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
-import session from 'express-session';
 import cookieParser from 'cookie-parser';
 
 import redis from './redis.js';
@@ -35,3 +34,11 @@ console.log('Clear Tab Connected to DB');
 app.listen(PORT, () => console.log('Clear Tab is live on http://localhost:6767'));
 
 app.use('/', indexRouter);
+app.use((req, res) => {
+    const cookie = req.cookies?.authToken;
+    let toDashboard = true;
+
+    if (!cookie) toDashboard = false;
+
+    res.status(404).render('404', { path: req.originalUrl, toDashboard });
+});

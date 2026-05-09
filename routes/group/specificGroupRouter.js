@@ -17,16 +17,16 @@ specificGroupRouter.get('/', async (req, res) => {
         const groupId = req.params.id;
 
         const user = await User.findById(userId);
-
         const group = await Group.findById(groupId)
             .populate('members', 'userName email')
             .populate('createdBy', 'userName email');
+
+        if (!group) return res.status(404).render('404', { path: req.originalUrl });
 
         const expenses = await Expense.find({ group: groupId })
             .populate('paidBy', 'userName email')
             .sort({ createdAt: -1 });
 
-        // balance map for all members
         const balanceMap = {};
         await Promise.all(
             group.members.map(async (m) => {
@@ -38,7 +38,6 @@ specificGroupRouter.get('/', async (req, res) => {
         const userBalance = balanceMap[userId.toString()] || 0;
         const totalSpend = expenses.reduce((s, e) => s + e.amount, 0);
 
-        // hydrate transactions with user objects
         const memberMap = Object.fromEntries(group.members.map((m) => [m._id.toString(), m]));
         const rawTxns = minimiseTransactions(balanceMap);
         const transactions = rawTxns.map((txn) => ({
@@ -64,50 +63,78 @@ specificGroupRouter.get('/', async (req, res) => {
 });
 
 specificGroupRouter.get('/invite', async (req, res) => {
-    const data = await jwt.read(req.cookies.authToken);
-    const userId = data.userId;
-    const groupId = req.params.id;
+    try {
+        const data = await jwt.read(req.cookies.authToken);
+        const userId = data.userId;
+        const groupId = req.params.id;
 
-    const user = await User.findById(userId);
+        const user = await User.findById(userId);
+        const group = await Group.findById(groupId)
+            .populate('members', 'userName email')
+            .populate('createdBy', 'userName email');
 
-    const group = await Group.findById(groupId)
-        .populate('members', 'userName email')
-        .populate('createdBy', 'userName email');
+        if (!group) return res.status(404).render('404', { path: req.originalUrl });
 
-    if (group.members.some((member) => member._id.toString() === user._id.toString()))
-        return res.redirect(`/groups/${groupId}`);
+        if (group.members.some((m) => m._id.toString() === userId.toString())) {
+            return res.redirect(`/groups/${groupId}`);
+        }
 
-    const expenseCount = await Expense.countDocuments({ group: groupId });
+        const expenseCount = await Expense.countDocuments({ group: groupId });
 
-    res.render('group-invite', { user, group, expenseCount });
+        res.render('group-invite', { user, group, expenseCount });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Something went wrong.');
+    }
 });
 
 specificGroupRouter.post('/invite', async (req, res) => {
-    const data = await jwt.read(req.cookies.authToken);
-    const userId = data.userId;
-    const groupId = req.params.id;
+    try {
+        const data = await jwt.read(req.cookies.authToken);
+        const userId = data.userId;
+        const groupId = req.params.id;
 
-    const user = await User.findById(userId);
-    const group = await Group.findById(groupId);
+        const group = await Group.findById(groupId);
+        if (!group) return res.status(404).send('Group not found.');
 
-    user.groups.push(group._id);
-    await user.save();
+        const user = await User.findById(userId);
 
-    group.members.push(userId);
-    await group.save();
+        // guard against duplicate membership
+        const alreadyMember = group.members.map((m) => m.toString()).includes(userId.toString());
+        if (!alreadyMember) {
+            group.members.push(userId);
+            await group.save();
+        }
 
-    res.redirect(`/groups/${groupId}`);
+        const alreadyInUser = user.groups.map((g) => g.toString()).includes(groupId.toString());
+        if (!alreadyInUser) {
+            user.groups.push(group._id);
+            await user.save();
+        }
+
+        res.redirect(`/groups/${groupId}`);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Something went wrong.');
+    }
 });
 
 specificGroupRouter.get('/expenses/new', async (req, res) => {
-    const data = await jwt.read(req.cookies.authToken);
-    const userId = data.userId;
-    const groupId = req.params.id;
+    try {
+        const data = await jwt.read(req.cookies.authToken);
+        const userId = data.userId;
+        const groupId = req.params.id;
 
-    const user = await User.findById(userId);
-    const group = await Group.findById(groupId).populate('members', 'userName email');
+        const user = await User.findById(userId);
+        const group = await Group.findById(groupId).populate('members', 'userName email');
 
-    res.render('expense-new', { user, group, error: undefined });
+        if (!group) return res.status(404).render('404', { path: req.originalUrl });
+
+        res.render('expense-new', { user, group, error: undefined });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Something went wrong.');
+    }
 });
 
 specificGroupRouter.post('/expenses/new', async (req, res) => {
@@ -119,9 +146,10 @@ specificGroupRouter.post('/expenses/new', async (req, res) => {
         const user = await User.findById(userId);
         const group = await Group.findById(groupId).populate('members', 'userName email');
 
+        if (!group) return res.status(404).send('Group not found.');
+
         const { description, amount, splitType, splits } = req.body;
 
-        // basic validation
         if (!description || !amount) {
             return res.render('expense-new', {
                 user,
@@ -140,13 +168,9 @@ specificGroupRouter.post('/expenses/new', async (req, res) => {
         }
 
         const splitsArray = Array.isArray(splits) ? splits : Object.values(splits);
-
         const activeSplits = splitsArray
             .filter((s) => s.included === 'true')
-            .map((s) => ({
-                user: s.user,
-                amount: parseFloat(s.amount),
-            }));
+            .map((s) => ({ user: s.user, amount: parseFloat(s.amount) }));
 
         if (activeSplits.length === 0) {
             return res.render('expense-new', {
@@ -156,7 +180,6 @@ specificGroupRouter.post('/expenses/new', async (req, res) => {
             });
         }
 
-        // for exact split — validate amounts add up
         if (splitType === 'exact') {
             const splitTotal = activeSplits.reduce((sum, s) => sum + s.amount, 0);
             if (Math.abs(splitTotal - totalAmount) >= 0.01) {
@@ -168,16 +191,14 @@ specificGroupRouter.post('/expenses/new', async (req, res) => {
             }
         }
 
-        const expense = new Expense({
+        await new Expense({
             description,
             amount: totalAmount,
             paidBy: userId,
             group: groupId,
             splits: activeSplits,
-            createdAt: Date.now(),
-        });
+        }).save();
 
-        await expense.save();
         res.redirect(`/groups/${groupId}`);
     } catch (err) {
         console.error(err);
@@ -193,22 +214,15 @@ specificGroupRouter.post('/settle', async (req, res) => {
 
         const { paidTo, amount } = req.body;
 
-        // basic validation
-        if (!paidTo || !amount) {
-            return res.redirect(`/groups/${groupId}#settle`);
-        }
+        if (!paidTo || !amount) return res.redirect(`/groups/${groupId}#settle`);
 
         const settlementAmount = parseFloat(amount);
         if (isNaN(settlementAmount) || settlementAmount <= 0) {
             return res.redirect(`/groups/${groupId}#settle`);
         }
 
-        // can't settle with yourself
-        if (paidTo === userId.toString()) {
-            return res.redirect(`/groups/${groupId}#settle`);
-        }
+        if (paidTo === userId.toString()) return res.redirect(`/groups/${groupId}#settle`);
 
-        // verify both users are actually in this group
         const group = await Group.findById(groupId);
         if (!group) return res.status(404).send('Group not found.');
 
@@ -217,13 +231,12 @@ specificGroupRouter.post('/settle', async (req, res) => {
             return res.status(403).send('Not a group member.');
         }
 
-        const settlement = new Settlement({
+        await new Settlement({
             group: groupId,
             paidBy: userId,
             paidTo: paidTo,
             amount: settlementAmount,
-        });
-        await settlement.save();
+        }).save();
 
         res.redirect(`/groups/${groupId}#settle`);
     } catch (err) {
@@ -246,11 +259,8 @@ specificGroupRouter.post('/delete', async (req, res) => {
         }
 
         await Expense.deleteMany({ group: groupId });
-
         await Settlement.deleteMany({ group: groupId });
-
         await User.updateMany({ groups: groupId }, { $pull: { groups: groupId } });
-
         await Group.findByIdAndDelete(groupId);
 
         res.redirect('/groups');

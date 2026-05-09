@@ -17,7 +17,6 @@ import minimiseTransactions from '../functions/minimumTransaction.js';
 const indexRouter = Router();
 
 indexRouter.get('/', async (req, res) => {
-    console.log(req.protocol + '://' + req.get('host'));
     const token = req.query?.token;
     let email, error, cookie;
     if (token) {
@@ -36,103 +35,107 @@ indexRouter.get('/', async (req, res) => {
 
 indexRouter.get('/otp', async (req, res) => {
     const token = req.query.token;
+    if (!token || !validator.isJWT(token)) return res.redirect('/');
 
-    if (!token) return res.redirect('/');
-    if (!validator.isJWT(token)) return res.redirect('/');
-
-    const { email, error } = await jwt.read(token);
-
-    res.render('otp', { email, error });
+    try {
+        const { email, error } = await jwt.read(token);
+        res.render('otp', { email, error });
+    } catch {
+        res.redirect('/');
+    }
 });
 
 indexRouter.get('/dashboard', hasCookie, async (req, res) => {
-    const data = await jwt.read(req.cookies.authToken);
-    const userId = data.userId;
+    try {
+        const data = await jwt.read(req.cookies.authToken);
+        const userId = data.userId;
 
-    // 1. fetch user
-    const user = await User.findById(userId);
+        const user = await User.findById(userId);
 
-    // 2. fetch groups with member count
-    const groups = await Group.find({ _id: { $in: user.groups } }).populate(
-        'members',
-        'userName email',
-    );
+        const groups = await Group.find({ _id: { $in: user.groups } }).populate(
+            'members',
+            'userName email',
+        );
 
-    // 3. per group — calculate userBalance + expenseCount + minimised transactions
-    const allTransactions = [];
+        const expenseCounts = await Expense.aggregate([
+            { $match: { group: { $in: groups.map((g) => g._id) } } },
+            { $group: { _id: '$group', count: { $sum: 1 } } },
+        ]);
+        const expenseCountMap = Object.fromEntries(
+            expenseCounts.map((e) => [e._id.toString(), e.count]),
+        );
 
-    const groupsWithBalance = await Promise.all(
-        groups.map(async (g) => {
-            // raw balances for every member in this group
-            const balanceMap = {};
-            await Promise.all(
-                g.members.map(async (member) => {
-                    const balances = await getBalancesForUser(member._id, g._id);
-                    balanceMap[member._id.toString()] = balances.reduce(
-                        (sum, b) => sum + b.amount,
-                        0,
-                    );
-                }),
-            );
+        const allTransactions = [];
 
-            // user's own net in this group
-            const userBalance = balanceMap[userId.toString()] || 0;
+        const groupsWithBalance = await Promise.all(
+            groups.map(async (g) => {
+                const balanceMap = {};
+                await Promise.all(
+                    g.members.map(async (member) => {
+                        const balances = await getBalancesForUser(member._id, g._id);
+                        balanceMap[member._id.toString()] = balances.reduce(
+                            (sum, b) => sum + b.amount,
+                            0,
+                        );
+                    }),
+                );
 
-            // expense count
-            const expenseCount = await Expense.countDocuments({ group: g._id });
+                const userBalance = balanceMap[userId.toString()] || 0;
+                const expenseCount = expenseCountMap[g._id.toString()] || 0;
 
-            // minimised transactions for this group
-            const txns = minimiseTransactions(balanceMap);
+                const txns = minimiseTransactions(balanceMap);
+                const memberMap = Object.fromEntries(g.members.map((m) => [m._id.toString(), m]));
 
-            // populate from/to with user objects already in g.members
-            const memberMap = Object.fromEntries(g.members.map((m) => [m._id.toString(), m]));
-            txns.forEach((txn) => {
-                allTransactions.push({
-                    from: memberMap[txn.from],
-                    to: memberMap[txn.to],
-                    amount: txn.amount,
-                    groupName: g.name,
+                txns.forEach((txn) => {
+                    allTransactions.push({
+                        from: memberMap[txn.from],
+                        to: memberMap[txn.to],
+                        amount: txn.amount,
+                        groupName: g.name,
+                    });
                 });
-            });
 
-            return {
-                ...g.toObject(),
-                members: g.members,
-                userBalance,
-                expenseCount,
-            };
-        }),
-    );
+                return {
+                    ...g.toObject(),
+                    members: g.members,
+                    userBalance,
+                    expenseCount,
+                };
+            }),
+        );
 
-    // 4. compute dashboard totals from user's perspective only
-    const myTxns = allTransactions.filter(
-        (t) =>
-            t.from._id.toString() === userId.toString() ||
-            t.to._id.toString() === userId.toString(),
-    );
+        const myTxns = allTransactions.filter(
+            (t) =>
+                t.from._id.toString() === userId.toString() ||
+                t.to._id.toString() === userId.toString(),
+        );
 
-    const totalOwe = myTxns
-        .filter((t) => t.from._id.toString() === userId.toString())
-        .reduce((sum, t) => sum + t.amount, 0);
+        const totalOwe = myTxns
+            .filter((t) => t.from._id.toString() === userId.toString())
+            .reduce((sum, t) => sum + t.amount, 0);
 
-    const totalOwed = myTxns
-        .filter((t) => t.to._id.toString() === userId.toString())
-        .reduce((sum, t) => sum + t.amount, 0);
+        const totalOwed = myTxns
+            .filter((t) => t.to._id.toString() === userId.toString())
+            .reduce((sum, t) => sum + t.amount, 0);
 
-    const totalBalance = totalOwed - totalOwe;
-    const oweCount = myTxns.filter((t) => t.from._id.toString() === userId.toString()).length;
-    const owedCount = myTxns.filter((t) => t.to._id.toString() === userId.toString()).length;
+        const totalBalance = totalOwed - totalOwe;
+        const oweCount = myTxns.filter((t) => t.from._id.toString() === userId.toString()).length;
+        const owedCount = myTxns.filter((t) => t.to._id.toString() === userId.toString()).length;
 
-    res.render('dashboard', {
-        user,
-        groups: groupsWithBalance,
-        transactions: allTransactions, // all — EJS handles highlighting yours
-        totalBalance,
-        totalOwe,
-        totalOwed,
-        oweCount,
-        owedCount,
-    });
+        res.render('dashboard', {
+            user,
+            groups: groupsWithBalance,
+            transactions: allTransactions,
+            totalBalance,
+            totalOwe,
+            totalOwed,
+            oweCount,
+            owedCount,
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Something went wrong.');
+    }
 });
 
 indexRouter.use('/auth', authRouter);
