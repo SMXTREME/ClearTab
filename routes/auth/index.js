@@ -42,11 +42,14 @@ authRouter.post('/send-otp', async (req, res) => {
 
         const otpQuery = { email: normalizedEmail, error: undefined };
         const token = await jwt.write(otpQuery);
-        res.redirect(`/otp?token=${token}`);
 
         const OTP = Math.floor(100000 + Math.random() * 900000);
         await redis.set(normalizedEmail, JSON.stringify({ otp: OTP, tries: 0 }), 'EX', 300);
-        await sendOtpEmail(email, OTP);
+        const data = await sendOtpEmail(email, OTP);
+
+        console.log(data);
+
+        res.redirect(`/otp?token=${token}`);
     } catch (err) {
         console.log('Error in /auth/send-otp:\n', err);
     }
