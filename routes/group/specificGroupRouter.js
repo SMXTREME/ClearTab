@@ -121,8 +121,6 @@ specificGroupRouter.post('/expenses/new', async (req, res) => {
 
         const { description, amount, splitType, splits } = req.body;
 
-        console.log(description, amount, splitType, splits);
-
         // basic validation
         if (!description || !amount) {
             return res.render('expense-new', {
@@ -149,8 +147,6 @@ specificGroupRouter.post('/expenses/new', async (req, res) => {
                 user: s.user,
                 amount: parseFloat(s.amount),
             }));
-
-        console.log(totalAmount, splitsArray, activeSplits);
 
         if (activeSplits.length === 0) {
             return res.render('expense-new', {

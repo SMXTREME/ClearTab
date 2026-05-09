@@ -98,11 +98,11 @@ authRouter.post('/verify-otp', async (req, res) => {
                 },
             );
 
-            res.redirect('/dashboard');
-
             if (newUserMail) {
                 await sendWelcomeEmail(user.email, user.userName);
             }
+
+            res.redirect('/dashboard');
         } else {
             if (attempts + 1 <= 3) {
                 await redis.set(
