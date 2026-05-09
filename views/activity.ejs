@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ClearTab — Activity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --surface-2: #161616;
+      --border: #1e1e1e; --border-lit: #2a2a2a;
+      --text: #e8e8e0; --muted: #8b8b76; --muted-2: #62625b;
+      --accent: #c8f060; --accent-dim: #8faa40; --accent-bg: rgba(200,240,96,.06);
+      --danger: #ff5f5f; --positive: #60f0a8;
+      --mono: 'DM Mono', monospace; --sans: 'Syne', sans-serif;
+      --sidebar-w: 240px;
+    }
+    html { scroll-behavior: smooth; }
+    a {
+      cursor: none;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; display: flex; cursor: none; }
+    #cursor { position: fixed; width: 10px; height: 10px; background: var(--accent); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: width .15s, height .15s, opacity .15s; mix-blend-mode: difference; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E"); opacity: .02; pointer-events: none; z-index: 0; }
+
+    /* SIDEBAR */
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; }
+    .sidebar-logo { padding: 1.5rem; border-bottom: 1px solid var(--border); font-family: var(--sans); font-weight: 800; font-size: 1.1rem; letter-spacing: -.02em; color: var(--text); text-decoration: none; display: block; }
+    .sidebar-logo span { color: var(--accent); }
+    .sidebar-nav { flex: 1; padding: 1rem 0; }
+    .nav-section-label { font-family: var(--mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-2); padding: .75rem 1.5rem .4rem; }
+    .nav-item { display: flex; align-items: center; gap: .75rem; padding: .6rem 1.5rem; font-family: var(--mono); font-size: .78rem; color: var(--muted); text-decoration: none; transition: color .2s, background .2s; position: relative; }
+    .nav-item:hover { color: var(--text); background: var(--surface-2); }
+    .nav-item.active { color: var(--accent); background: var(--accent-bg); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); }
+    .nav-icon { font-size: .9rem; width: 16px; text-align: center; flex-shrink: 0; }
+    .sidebar-user { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; align-items: center; gap: .75rem; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 2px; background: var(--border-lit); overflow: hidden; flex-shrink: 0; }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .user-name { font-size: .8rem; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-email { font-family: var(--mono); font-size: .65rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; position: relative; z-index: 1; }
+
+    /* TOPBAR */
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 2rem; border-bottom: 1px solid var(--border); background: rgba(10,10,10,.8); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; }
+    .topbar-left { display: flex; align-items: center; gap: 1rem; }
+    .topbar-title { font-size: 1rem; font-weight: 700; letter-spacing: -.01em; }
+    .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.2rem; cursor: none; padding: .25rem; }
+
+    /* CONTENT */
+    .content { padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; max-width: 720px; }
+
+    /* FILTER BAR */
+    .filter-bar {
+      display: flex; gap: .4rem; flex-wrap: wrap;
+    }
+    .filter-btn {
+      font-family: var(--mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase;
+      padding: .4rem .85rem; border-radius: 2px; cursor: none;
+      border: 1px solid var(--border-lit); background: transparent; color: var(--muted);
+      transition: border-color .2s, color .2s, background .2s;
+      white-space: nowrap;
+    }
+    .filter-btn:hover { border-color: var(--muted); color: var(--text); }
+    .filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+    /* FEED */
+    .feed { display: flex; flex-direction: column; gap: 0; }
+
+    /* DATE DIVIDER */
+    .date-divider {
+      display: flex; align-items: center; gap: .75rem;
+      padding: 1rem 0 .5rem;
+    }
+    .date-divider-line { flex: 1; height: 1px; background: var(--border); }
+    .date-divider-label {
+      font-family: var(--mono); font-size: .65rem;
+      letter-spacing: .1em; text-transform: uppercase; color: var(--muted-2);
+      white-space: nowrap;
+    }
+
+    /* ACTIVITY ITEM */
+    .activity-item {
+      display: flex; gap: 1rem; align-items: flex-start;
+      padding: .85rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .activity-item:last-child { border-bottom: none; }
+
+    /* ICON BUBBLE */
+    .activity-icon {
+      width: 34px; height: 34px; border-radius: 2px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .85rem;
+    }
+    .activity-icon.expense    { background: rgba(200,240,96,.08);  border: 1px solid rgba(200,240,96,.15); }
+    .activity-icon.settlement { background: rgba(96,240,168,.08);  border: 1px solid rgba(96,240,168,.15); }
+    .activity-icon.join       { background: rgba(255,255,255,.04); border: 1px solid var(--border-lit); }
+
+    /* BODY */
+    .activity-body { flex: 1; min-width: 0; }
+    .activity-text {
+      font-size: .85rem; line-height: 1.5;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .activity-text b { font-weight: 700; color: var(--text); }
+    .activity-text .you { color: var(--accent); }
+
+    .activity-meta {
+      display: flex; align-items: center; gap: .5rem; margin-top: .25rem; flex-wrap: wrap;
+    }
+    .activity-time { font-family: var(--mono); font-size: .65rem; color: var(--muted); }
+    .activity-group-tag {
+      font-family: var(--mono); font-size: .62rem; letter-spacing: .04em;
+      color: var(--muted); background: var(--surface-2);
+      border: 1px solid var(--border-lit); padding: .1rem .4rem; border-radius: 2px;
+    }
+
+    /* AMOUNT BADGE */
+    .activity-amount {
+      font-family: var(--mono); font-size: .82rem; font-weight: 500;
+      white-space: nowrap; flex-shrink: 0; padding-top: .1rem;
+    }
+    .activity-amount.expense    { color: var(--text); }
+    .activity-amount.settlement { color: var(--positive); }
+
+    /* AVATAR STACK */
+    .activity-avatar {
+      width: 34px; height: 34px; border-radius: 2px; overflow: hidden;
+      background: var(--border-lit); flex-shrink: 0;
+    }
+    .activity-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* EMPTY */
+    .empty-state { background: var(--surface); border: 1px dashed var(--border-lit); border-radius: 3px; padding: 4rem 2rem; text-align: center; }
+    .empty-icon  { font-size: 1.5rem; margin-bottom: .75rem; }
+    .empty-title { font-size: .88rem; font-weight: 700; margin-bottom: .4rem; }
+    .empty-desc  { font-family: var(--mono); font-size: .72rem; color: var(--muted); line-height: 1.6; }
+
+    /* FADE IN */
+    .fade-in { opacity: 0; transform: translateY(12px); animation: fadeIn .5s forwards; }
+    .fade-in:nth-child(1) { animation-delay: .05s; }
+    .fade-in:nth-child(2) { animation-delay: .1s; }
+    @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 0px; }
+      .sidebar { transform: translateX(-240px); width: 240px; transition: transform .3s ease; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .hamburger { display: block; }
+      .content { padding: 1rem; }
+      .topbar { padding: 1rem; }
+      .activity-text { white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+<div id="cursor"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <a href="/dashboard" class="sidebar-logo">ClearTab<span>.</span></a>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Main</div>
+    <a href="/dashboard" class="nav-item"><span class="nav-icon">⊞</span> Dashboard</a>
+    <a href="/groups"    class="nav-item"><span class="nav-icon">◈</span> Groups</a>
+    <a href="/activity"  class="nav-item active"><span class="nav-icon">◎</span> Activity</a>
+    <div class="nav-section-label" style="margin-top:.5rem;">Account</div>
+    <a href="/settings"    class="nav-item"><span class="nav-icon">⬡</span> Settings</a>
+    <a href="/auth/logout" class="nav-item"><span class="nav-icon">→</span> Logout</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">
+      <img src="https://api.dicebear.com/7.x/bottts/svg?seed=<%= user.userName %>" alt="<%= user.userName %>" />
+    </div>
+    <div class="user-info">
+      <div class="user-name"><%= user.userName %></div>
+      <div class="user-email"><%= user.email %></div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" id="hamburger">☰</button>
+      <span class="topbar-title">Activity</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar fade-in">
+      <button class="filter-btn active" data-group="all">All Groups</button>
+      <% groups.forEach(g => { %>
+        <button class="filter-btn" data-group="<%= g._id %>">
+          <%= g.icon %> <%= g.name %>
+        </button>
+      <% }) %>
+    </div>
+
+    <!-- FEED -->
+    <div class="fade-in">
+      <% if (events.length === 0) { %>
+        <div class="empty-state">
+          <div class="empty-icon">◎</div>
+          <div class="empty-title">No activity yet</div>
+          <p class="empty-desc">Add an expense or settle up in a group<br>and it will appear here.</p>
+        </div>
+      <% } else { %>
+
+        <div class="feed" id="feed">
+          <%
+            let lastDate = null;
+            events.forEach(event => {
+              const d = new Date(event.createdAt);
+              const dateKey = d.toDateString();
+              const isToday     = dateKey === new Date().toDateString();
+              const isYesterday = dateKey === new Date(Date.now() - 86400000).toDateString();
+              const dateLabel   = isToday ? 'Today' : isYesterday ? 'Yesterday' :
+                d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+              const timeLabel = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+          %>
+
+            <% if (dateKey !== lastDate) { lastDate = dateKey; %>
+              <div class="date-divider" data-group="<%= event.groupId %>">
+                <div class="date-divider-line"></div>
+                <div class="date-divider-label"><%= dateLabel %></div>
+                <div class="date-divider-line"></div>
+              </div>
+            <% } %>
+
+            <!-- EXPENSE EVENT -->
+            <% if (event.type === 'expense') {
+              const iMe = event.paidBy._id.toString() === user._id.toString();
+            %>
+              <div class="activity-item" data-group="<%= event.groupId %>">
+                <div class="activity-avatar">
+                  <img src="https://api.dicebear.com/7.x/bottts/svg?seed=<%= event.paidBy.userName %>" />
+                </div>
+                <div class="activity-body">
+                  <div class="activity-text">
+                    <% if (iMe) { %>
+                      <span class="you">You</span> added <b><%= event.description %></b>
+                    <% } else { %>
+                      <b><%= event.paidBy.userName %></b> added <b><%= event.description %></b>
+                    <% } %>
+                  </div>
+                  <div class="activity-meta">
+                    <span class="activity-time"><%= timeLabel %></span>
+                    <span class="activity-group-tag"><%= event.groupIcon %> <%= event.groupName %></span>
+                  </div>
+                </div>
+                <div class="activity-amount expense">₹<%= event.amount.toLocaleString('en-IN') %></div>
+              </div>
+
+            <!-- SETTLEMENT EVENT -->
+            <% } else if (event.type === 'settlement') {
+              const iSent     = event.paidBy._id.toString() === user._id.toString();
+              const iReceived = event.paidTo._id.toString() === user._id.toString();
+            %>
+              <div class="activity-item" data-group="<%= event.groupId %>">
+                <div class="activity-icon settlement">✦</div>
+                <div class="activity-body">
+                  <div class="activity-text">
+                    <% if (iSent) { %>
+                      <span class="you">You</span> paid <b><%= event.paidTo.userName %></b>
+                    <% } else if (iReceived) { %>
+                      <b><%= event.paidBy.userName %></b> paid <span class="you">you</span>
+                    <% } else { %>
+                      <b><%= event.paidBy.userName %></b> paid <b><%= event.paidTo.userName %></b>
+                    <% } %>
+                  </div>
+                  <div class="activity-meta">
+                    <span class="activity-time"><%= timeLabel %></span>
+                    <span class="activity-group-tag"><%= event.groupIcon %> <%= event.groupName %></span>
+                  </div>
+                </div>
+                <div class="activity-amount settlement">₹<%= event.amount.toLocaleString('en-IN') %></div>
+              </div>
+
+            <!-- JOIN EVENT -->
+            <% } else if (event.type === 'join') {
+              const iJoined = event.member._id.toString() === user._id.toString();
+            %>
+              <div class="activity-item" data-group="<%= event.groupId %>">
+                <div class="activity-avatar">
+                  <img src="https://api.dicebear.com/7.x/bottts/svg?seed=<%= event.member.userName %>" />
+                </div>
+                <div class="activity-body">
+                  <div class="activity-text">
+                    <% if (iJoined) { %>
+                      <span class="you">You</span> joined <b><%= event.groupName %></b>
+                    <% } else { %>
+                      <b><%= event.member.userName %></b> joined <b><%= event.groupName %></b>
+                    <% } %>
+                  </div>
+                  <div class="activity-meta">
+                    <span class="activity-time"><%= timeLabel %></span>
+                    <span class="activity-group-tag"><%= event.groupIcon %> <%= event.groupName %></span>
+                  </div>
+                </div>
+              </div>
+            <% } %>
+
+          <% }) %>
+        </div>
+
+      <% } %>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // cursor
+  const cur = document.getElementById('cursor');
+  document.addEventListener('mousemove', e => { cur.style.left = e.clientX + 'px'; cur.style.top = e.clientY + 'px'; });
+  document.querySelectorAll('button, a').forEach(el => {
+    el.addEventListener('mouseenter', () => { cur.style.width = '22px'; cur.style.height = '22px'; cur.style.opacity = '.5'; });
+    el.addEventListener('mouseleave', () => { cur.style.width = '10px'; cur.style.height = '10px'; cur.style.opacity = '1'; });
+  });
+  document.getElementById('hamburger').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+
+  // filter
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const groupId = btn.dataset.group;
+      document.querySelectorAll('#feed .activity-item, #feed .date-divider').forEach(el => {
+        if (groupId === 'all' || el.dataset.group === groupId) {
+          el.style.display = '';
+        } else {
+          el.style.display = 'none';
+        }
+      });
+
+      // hide orphan date dividers (divider with no visible items after it)
+      document.querySelectorAll('#feed .date-divider').forEach(divider => {
+        let next = divider.nextElementSibling;
+        let hasVisible = false;
+        while (next && !next.classList.contains('date-divider')) {
+          if (next.style.display !== 'none') { hasVisible = true; break; }
+          next = next.nextElementSibling;
+        }
+        divider.style.display = hasVisible ? '' : 'none';
+      });
+    });
+  });
+</script>
+</body>
+</html>

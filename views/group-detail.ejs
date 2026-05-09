@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ClearTab — <%= group.name %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --surface-2: #161616;
+      --border: #1e1e1e; --border-lit: #2a2a2a;
+      --text: #e8e8e0; --muted: #8b8b76; --muted-2: #62625b;
+      --accent: #c8f060; --accent-dim: #8faa40; --accent-bg: rgba(200,240,96,.06);
+      --danger: #ff5f5f; --danger-bg: rgba(255,95,95,.07);
+      --positive: #60f0a8; --positive-bg: rgba(96,240,168,.07);
+      --mono: 'DM Mono', monospace; --sans: 'Syne', sans-serif;
+      --sidebar-w: 240px;
+    }
+    html { scroll-behavior: smooth; }
+    a {
+      cursor: none;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; display: flex; cursor: none; }
+    #cursor { position: fixed; width: 10px; height: 10px; background: var(--accent); border-radius: 50%; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: width .15s, height .15s, opacity .15s; mix-blend-mode: difference; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E"); opacity: .02; pointer-events: none; z-index: 0; }
+
+    /* SIDEBAR */
+    .sidebar { width: var(--sidebar-w); min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; }
+    .sidebar-logo { padding: 1.5rem; border-bottom: 1px solid var(--border); font-family: var(--sans); font-weight: 800; font-size: 1.1rem; letter-spacing: -.02em; color: var(--text); text-decoration: none; display: block; }
+    .sidebar-logo span { color: var(--accent); }
+    .sidebar-nav { flex: 1; padding: 1rem 0; }
+    .nav-section-label { font-family: var(--mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-2); padding: .75rem 1.5rem .4rem; }
+    .nav-item { display: flex; align-items: center; gap: .75rem; padding: .6rem 1.5rem; font-family: var(--mono); font-size: .78rem; color: var(--muted); text-decoration: none; transition: color .2s, background .2s; position: relative; }
+    .nav-item:hover { color: var(--text); background: var(--surface-2); }
+    .nav-item.active { color: var(--accent); background: var(--accent-bg); }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); }
+    .nav-icon { font-size: .9rem; width: 16px; text-align: center; flex-shrink: 0; }
+    .sidebar-user { padding: 1rem 1.5rem; border-top: 1px solid var(--border); display: flex; align-items: center; gap: .75rem; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 2px; background: var(--border-lit); overflow: hidden; flex-shrink: 0; }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .user-name { font-size: .8rem; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-email { font-family: var(--mono); font-size: .65rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* MAIN */
+    .main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; position: relative; z-index: 1; }
+
+    /* TOPBAR */
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 2rem; border-bottom: 1px solid var(--border); background: rgba(10,10,10,.8); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; }
+    .topbar-left { display: flex; align-items: center; gap: 1rem; }
+    .topbar-title { font-size: 1rem; font-weight: 700; letter-spacing: -.01em; }
+    .topbar-actions { display: flex; gap: .75rem; }
+    .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.2rem; cursor: none; padding: .25rem; }
+    .back-link { font-family: var(--mono); font-size: .72rem; color: var(--muted); text-decoration: none; letter-spacing: .04em; transition: color .2s; }
+    .back-link:hover { color: var(--text); }
+
+    /* BUTTONS */
+    .btn-primary { background: var(--accent); color: var(--bg); border: none; font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; padding: .55rem 1rem; border-radius: 2px; cursor: none; font-weight: 500; transition: background .2s, transform .1s; white-space: nowrap; text-decoration: none; display: inline-block; }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-primary:active { transform: scale(.97); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border-lit); font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; padding: .55rem 1rem; border-radius: 2px; cursor: none; transition: border-color .2s, color .2s; white-space: nowrap; text-decoration: none; display: inline-block; }
+    .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(255,95,95,.25); font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; padding: .55rem 1rem; border-radius: 2px; cursor: none; transition: background .2s, border-color .2s; white-space: nowrap; text-decoration: none; display: inline-block; }
+    .btn-danger:hover { background: var(--danger-bg); border-color: rgba(255,95,95,.5); }
+
+    /* CONTENT */
+    .content { padding: 2rem; display: flex; flex-direction: column; gap: 2rem; }
+
+    /* GROUP HERO */
+    .group-hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1.75rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+    .group-hero-left { display: flex; align-items: center; gap: 1.25rem; }
+    .group-hero-icon { width: 56px; height: 56px; background: var(--surface-2); border: 1px solid var(--border-lit); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0; }
+    .group-hero-name { font-size: 1.4rem; font-weight: 800; letter-spacing: -.025em; margin-bottom: .3rem; }
+    .group-hero-meta { font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+    .group-hero-balances { display: flex; gap: 1.5rem; }
+    .hero-bal { text-align: right; }
+    .hero-bal-amount { font-family: var(--mono); font-size: 1.1rem; font-weight: 500; }
+    .hero-bal-amount.owe  { color: var(--danger); }
+    .hero-bal-amount.owed { color: var(--positive); }
+    .hero-bal-amount.settled { color: var(--muted); }
+    .hero-bal-label { font-family: var(--mono); font-size: .65rem; color: var(--muted); margin-top: .2rem; }
+
+    /* TABS */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); }
+    .tab-btn {
+      font-family: var(--mono); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--muted); padding: .85rem 1.5rem; background: none; border: none;
+      cursor: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+      transition: color .2s, border-color .2s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* TAB PANELS */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* MEMBERS PANEL */
+    .members-section { display: flex; flex-direction: column; gap: 1.5rem; padding-top: 1.5rem; }
+
+    .invite-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1.25rem;
+      display: flex; gap: .75rem; align-items: flex-end;
+    }
+    .invite-field { flex: 1; }
+    .invite-label { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .4rem; display: block; }
+    .invite-input { width: 100%; background: var(--bg); border: 1px solid var(--border-lit); color: var(--text); font-family: var(--mono); font-size: .88rem; padding: .7rem .9rem; border-radius: 2px; outline: none; transition: border-color .2s; }
+    .invite-input:focus { border-color: var(--accent); }
+    .invite-input::placeholder { color: var(--muted); }
+
+    .members-list { display: flex; flex-direction: column; gap: .4rem; }
+    .member-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: .85rem 1.25rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .member-left { display: flex; align-items: center; gap: .85rem; min-width: 0; flex: 1; }
+    .member-avatar { width: 32px; height: 32px; border-radius: 2px; overflow: hidden; background: var(--border-lit); flex-shrink: 0; }
+    .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .member-name { font-size: .85rem; font-weight: 700; letter-spacing: -.01em; }
+    .member-email { font-family: var(--mono); font-size: .68rem; color: var(--muted); margin-top: .1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+    .member-tag { font-family: var(--mono); font-size: .62rem; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: var(--accent-bg); border: 1px solid rgba(200,240,96,.15); padding: .15rem .45rem; border-radius: 2px; }
+    .member-balance { font-family: var(--mono); font-size: .82rem; font-weight: 500; text-align: right; white-space: nowrap; }
+    .member-balance.owe  { color: var(--danger); }
+    .member-balance.owed { color: var(--positive); }
+    .member-balance.settled { color: var(--muted); }
+    .member-balance-label { font-family: var(--mono); font-size: .62rem; color: var(--muted); text-align: right; margin-top: .1rem; }
+
+    /* EXPENSES PANEL */
+    .expenses-section { display: flex; flex-direction: column; gap: 1rem; padding-top: 1.5rem; }
+    .expenses-list { display: flex; flex-direction: column; gap: .4rem; }
+
+    .expense-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1rem 1.25rem;
+      display: flex; align-items: center; gap: 1rem;
+      text-decoration: none; color: var(--text);
+      transition: border-color .2s, background .2s;
+    }
+    .expense-row:hover { border-color: var(--border-lit); background: var(--surface-2); }
+
+    .expense-date {
+      font-family: var(--mono); font-size: .65rem; color: var(--muted);
+      width: 44px; flex-shrink: 0; text-align: center; line-height: 1.3;
+    }
+    .expense-date-day   { font-size: .85rem; font-weight: 700; color: var(--text); }
+
+    .expense-divider { width: 1px; height: 36px; background: var(--border-lit); flex-shrink: 0; }
+
+    .expense-info { flex: 1; min-width: 0; }
+    .expense-desc { font-size: .88rem; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .expense-meta { font-family: var(--mono); font-size: .68rem; color: var(--muted); margin-top: .15rem; }
+
+    .expense-right { text-align: right; flex-shrink: 0; }
+    .expense-amount { font-family: var(--mono); font-size: .92rem; font-weight: 500; color: var(--text); }
+    .expense-share {
+      font-family: var(--mono); font-size: .68rem; margin-top: .2rem;
+    }
+    .expense-share.owe  { color: rgba(255,95,95,.7); }
+    .expense-share.owed { color: rgba(96,240,168,.7); }
+    .expense-share.paid { color: rgba(200,240,96,.7); }
+
+    /* EMPTY EXPENSE */
+    .empty-state { background: var(--surface); border: 1px dashed var(--border-lit); border-radius: 3px; padding: 3rem 1.5rem; text-align: center; }
+    .empty-icon  { font-size: 1.5rem; margin-bottom: .75rem; }
+    .empty-title { font-size: .88rem; font-weight: 700; margin-bottom: .4rem; }
+    .empty-desc  { font-family: var(--mono); font-size: .72rem; color: var(--muted); line-height: 1.6; }
+
+    /* SETTLE UP PANEL */
+    .settle-section { display: flex; flex-direction: column; gap: 1rem; padding-top: 1.5rem; }
+    .settle-intro { font-family: var(--mono); font-size: .78rem; color: var(--muted); line-height: 1.7; }
+    .settle-intro b { color: var(--accent); font-weight: 400; }
+
+    .txn-list { display: flex; flex-direction: column; gap: .5rem; }
+    .txn-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 3px; padding: 1rem 1.25rem;
+      display: flex; align-items: center; gap: .85rem;
+    }
+    .txn-card.i-pay     { border-left: 2px solid var(--danger);   background: var(--surface-2); }
+    .txn-card.i-receive { border-left: 2px solid var(--positive); background: var(--surface-2); }
+    .txn-avatar { width: 28px; height: 28px; border-radius: 2px; overflow: hidden; flex-shrink: 0; background: var(--border-lit); }
+    .txn-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .txn-middle { flex: 1; display: flex; align-items: center; gap: .6rem; min-width: 0; }
+    .txn-person { min-width: 0; }
+    .txn-person-name { font-size: .82rem; font-weight: 700; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .txn-person-name.me { color: var(--accent); }
+    .txn-verb { font-family: var(--mono); font-size: .68rem; color: var(--muted); flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .txn-verb-arrow { width: 28px; height: 1px; background: var(--border-lit); position: relative; }
+    .txn-verb-arrow::after { content: '›'; position: absolute; right: -5px; top: -9px; color: var(--muted); font-size: .85rem; }
+    .txn-verb-label { font-size: .6rem; letter-spacing: .06em; text-transform: uppercase; }
+    .txn-right { text-align: right; flex-shrink: 0; }
+    .txn-figure { font-family: var(--mono); font-size: .88rem; font-weight: 500; }
+    .txn-figure.i-pay-amt     { color: var(--danger); }
+    .txn-figure.i-receive-amt { color: var(--positive); }
+
+    /* RECORD SETTLEMENT */
+    .record-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1.25rem;
+    }
+    .record-title { font-size: .88rem; font-weight: 700; margin-bottom: 1rem; }
+    .record-fields { display: grid; grid-template-columns: 1fr 1fr auto; gap: .75rem; align-items: end; }
+    .field-label { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .4rem; display: block; }
+    .field-select, .field-input-sm {
+      width: 100%; background: var(--bg); border: 1px solid var(--border-lit); color: var(--text);
+      font-family: var(--mono); font-size: .85rem; padding: .7rem .9rem; border-radius: 2px; outline: none;
+      transition: border-color .2s;
+    }
+    .field-select:focus, .field-input-sm:focus { border-color: var(--accent); }
+    .field-select option { background: var(--surface); }
+
+
+    /* COPY LINK ROW */
+    .invite-link-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1rem 1.25rem;
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .invite-link-label { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .35rem; }
+    .invite-link-url {
+      flex: 1; font-family: var(--mono); font-size: .78rem;
+      color: var(--muted); background: var(--bg);
+      border: 1px solid var(--border-lit); border-radius: 2px;
+      padding: .6rem .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .btn-copy {
+      background: transparent; color: var(--accent);
+      border: 1px solid rgba(200,240,96,.25);
+      font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+      padding: .55rem 1rem; border-radius: 2px; cursor: none;
+      transition: background .2s, border-color .2s; white-space: nowrap; flex-shrink: 0;
+    }
+    .btn-copy:hover { background: var(--accent-bg); border-color: rgba(200,240,96,.5); }
+    .btn-copy.copied { color: var(--positive); border-color: rgba(96,240,168,.4); }
+
+    /* DELETE GROUP */
+    .danger-zone {
+      margin-top: 1rem;
+      padding: 1rem 1.25rem;
+      background: var(--danger-bg);
+      border: 1px solid rgba(255,95,95,.15);
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    }
+    .danger-zone-text { font-family: var(--mono); font-size: .72rem; color: var(--muted); line-height: 1.6; }
+    .danger-zone-text b { color: var(--danger); font-weight: 400; }
+    .btn-delete {
+      background: transparent; color: var(--danger);
+      border: 1px solid rgba(255,95,95,.3);
+      font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+      padding: .55rem 1rem; border-radius: 2px; cursor: none; flex-shrink: 0;
+      transition: background .2s, border-color .2s;
+    }
+    .btn-delete:hover { background: var(--danger-bg); border-color: rgba(255,95,95,.6); }
+
+    /* FADE IN */
+    .fade-in { opacity: 0; transform: translateY(12px); animation: fadeIn .5s forwards; }
+    .fade-in:nth-child(1) { animation-delay: .05s; }
+    .fade-in:nth-child(2) { animation-delay: .1s; }
+    .fade-in:nth-child(3) { animation-delay: .15s; }
+    @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      :root { --sidebar-w: 0px; }
+      .sidebar { transform: translateX(-240px); width: 240px; transition: transform .3s ease; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0; }
+      .hamburger { display: block; }
+      .content { padding: 1rem; }
+      .topbar { padding: 1rem; }
+      .group-hero { flex-direction: column; align-items: flex-start; }
+      .group-hero-balances { width: 100%; justify-content: flex-start; }
+      .record-fields { grid-template-columns: 1fr; }
+      .topbar-actions .btn-ghost { display: none; }
+
+      /* members mobile */
+      .member-row { padding: .75rem 1rem; gap: .6rem; }
+      .member-email { max-width: 140px; font-size: .62rem; }
+      .member-name { font-size: .8rem; }
+      .member-balance { font-size: .78rem; }
+      .member-tag { display: none; }
+
+      /* invite link mobile */
+      .invite-link-row { flex-direction: column; align-items: stretch; gap: .6rem; }
+      .invite-link-url { font-size: .7rem; }
+      .btn-copy { text-align: center; }
+
+      /* danger zone mobile */
+      .danger-zone { flex-direction: column; align-items: flex-start; gap: .75rem; }
+      .danger-zone form { width: 100%; }
+      .btn-delete { width: 100%; text-align: center; }
+
+      /* expense row mobile */
+      .expense-divider { display: none; }
+      .expense-date { width: 32px; }
+      .expense-date-day { font-size: .75rem; }
+    }
+  </style>
+</head>
+<body>
+<div id="cursor"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <a href="/dashboard" class="sidebar-logo">ClearTab<span>.</span></a>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Main</div>
+    <a href="/dashboard" class="nav-item"><span class="nav-icon">⊞</span> Dashboard</a>
+    <a href="/groups"    class="nav-item active"><span class="nav-icon">◈</span> Groups</a>
+    <a href="/activity"  class="nav-item"><span class="nav-icon">◎</span> Activity</a>
+    <div class="nav-section-label" style="margin-top:.5rem;">Account</div>
+    <a href="/settings"    class="nav-item"><span class="nav-icon">⬡</span> Settings</a>
+    <a href="/auth/logout" class="nav-item"><span class="nav-icon">→</span> Logout</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">
+      <img src="https://api.dicebear.com/7.x/bottts/svg?seed=<%= user.userName %>" alt="<%= user.userName %>" />
+    </div>
+    <div class="user-info">
+      <div class="user-name"><%= user.userName %></div>
+      <div class="user-email"><%= user.email %></div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" id="hamburger">☰</button>
+      <a href="/groups" class="back-link">← Groups</a>
+      <span class="topbar-title"><%= group.icon %> <%= group.name %></span>
+    </div>
+    <div class="topbar-actions">
+      <a href="/groups/<%= group._id %>/expenses/new" class="btn-primary">+ Add Expense</a>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- GROUP HERO -->
+    <div class="group-hero fade-in">
+      <div class="group-hero-left">
+        <div class="group-hero-icon"><%= group.icon || '◈' %></div>
+        <div>
+          <div class="group-hero-name"><%= group.name %></div>
+          <div class="group-hero-meta">
+            <%= group.members.length %> member<%= group.members.length !== 1 ? 's' : '' %> ·
+            <%= expenses.length %> expense<%= expenses.length !== 1 ? 's' : '' %> ·
+            Created <%= new Date(group.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) %>
+          </div>
+        </div>
+      </div>
+      <div class="group-hero-balances">
+        <div class="hero-bal">
+          <div class="hero-bal-amount <%= userBalance === 0 ? 'settled' : userBalance < 0 ? 'owe' : 'owed' %>">
+            ₹<%= Math.abs(userBalance).toLocaleString('en-IN') %>
+          </div>
+          <div class="hero-bal-label">
+            <% if (userBalance === 0) { %>settled up
+            <% } else if (userBalance < 0) { %>you owe
+            <% } else { %>you're owed<% } %>
+          </div>
+        </div>
+        <div class="hero-bal">
+          <div class="hero-bal-amount" style="color:var(--text);">₹<%= totalSpend.toLocaleString('en-IN') %></div>
+          <div class="hero-bal-label">total spent</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="fade-in">
+      <div class="tabs" id="tabs">
+        <button class="tab-btn active" data-tab="expenses">Expenses</button>
+        <button class="tab-btn" data-tab="members">Members</button>
+        <button class="tab-btn" data-tab="settle">Settle Up</button>
+      </div>
+
+      <!-- EXPENSES TAB -->
+      <div class="tab-panel active" id="tab-expenses">
+        <div class="expenses-section">
+          <% if (expenses.length === 0) { %>
+            <div class="empty-state">
+              <div class="empty-icon">◎</div>
+              <div class="empty-title">No expenses yet</div>
+              <p class="empty-desc">Add your first expense to start tracking.</p>
+            </div>
+          <% } else { %>
+            <div class="expenses-list">
+              <% expenses.forEach(exp => { %>
+                <%
+                  const d = new Date(exp.createdAt);
+                  const day = d.getDate();
+                  const mon = d.toLocaleDateString('en-IN', { month: 'short' });
+                  const mySplit = exp.splits.find(s => s.user.toString() === user._id.toString());
+                  const iPaid   = exp.paidBy._id.toString() === user._id.toString();
+                  let shareClass = 'paid', shareLabel = 'you paid';
+                  if (!iPaid && mySplit) { shareClass = 'owe'; shareLabel = 'your share ₹' + mySplit.amount.toLocaleString('en-IN'); }
+                  if (iPaid && exp.splits.length > 1) { shareLabel = 'you paid · others owe you'; }
+                %>
+                <div class="expense-row">
+                  <div class="expense-date">
+                    <div class="expense-date-day"><%= day %></div>
+                    <%= mon %>
+                  </div>
+                  <div class="expense-divider"></div>
+                  <div class="expense-info">
+                    <div class="expense-desc"><%= exp.description %></div>
+                    <div class="expense-meta">paid by <%= iPaid ? 'you' : exp.paidBy.userName %></div>
+                  </div>
+                  <div class="expense-right">
+                    <div class="expense-amount">₹<%= exp.amount.toLocaleString('en-IN') %></div>
+                    <div class="expense-share <%= shareClass %>"><%= shareLabel %></div>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- MEMBERS TAB -->
+      <div class="tab-panel" id="tab-members">
+        <div class="members-section">
+
+          <!-- INVITE VIA LINK -->
+          <div>
+            <div class="invite-link-label">Invite link</div>
+            <div class="invite-link-row">
+              <div class="invite-link-url" id="invite-url"><%= inviteLink %></div>
+              <button type="button" class="btn-copy" id="copy-btn" onclick="copyInviteLink()">Copy Link</button>
+            </div>
+          </div>
+
+          <!-- MEMBERS LIST -->
+          <div class="members-list">
+            <% group.members.forEach(member => { %>
+              <%
+                const isMe = member._id.toString() === user._id.toString();
+                const isCreator = member._id.toString() === group.createdBy.toString();
+                const mb = memberBalances[member._id.toString()] || 0;
+              %>
+              <div class="member-row">
+                <div class="member-left">
+                  <div class="member-avatar">
+                    <img src="https://api.dicebear.com/7.x/bottts/svg?seed=<%= member.userName %>" alt="<%= member.userName %>" />
+                  </div>
+                  <div>
+                    <div style="display:flex;align-items:center;gap:.5rem;">
+                      <span class="member-name"><%= isMe ? 'You' : member.userName %></span>
+                      <% if (isCreator) { %><span class="member-tag">admin</span><% } %>
+                    </div>
+                    <div class="member-email"><%= member.email %></div>
+                  </div>
+                </div>
+                <div>
+                  <% if (mb === 0) { %>
+                    <div class="member-balance settled">Settled</div>
+                  <% } else if (mb < 0) { %>
+                    <div class="member-balance owe">₹<%= Math.abs(mb).toLocaleString('en-IN') %></div>
+                    <div class="member-balance-label"><%= isMe ? 'you owe' : 'owes the group' %></div>
+                  <% } else { %>
+                    <div class="member-balance owed">₹<%= mb.toLocaleString('en-IN') %></div>
+                    <div class="member-balance-label"><%= isMe ? "you're owed" : 'is owed' %></div>
+                  <% } %>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+
+          <!-- DELETE GROUP — owner only -->
+          <% if (group.createdBy._id.toString() === user._id.toString()) { %>
+            <div class="danger-zone">
+              <div class="danger-zone-text">
+                <b>Delete group</b><br>
+                This will permanently delete the group and all its expenses. Cannot be undone.
+              </div>
+              <form action="/groups/<%= group._id %>/delete" method="POST">
+                <button type="submit" class="btn-delete">Delete Group</button>
+              </form>
+            </div>
+          <% } %>
+
+        </div>
+      </div>
+
+      <!-- SETTLE UP TAB -->
+      <div class="tab-panel" id="tab-settle">
+        <div class="settle-section">
+
+          <% if (transactions.length === 0) { %>
+            <div class="empty-state">
+              <div class="empty-icon">✦</div>
+              <div class="empty-title">All settled up</div>
+              <p class="empty-desc">No pending payments in this group.</p>
+            </div>
+          <% } else { %>
+
+            <p class="settle-intro">
+              <b><%= transactions.length %> payment<%= transactions.length !== 1 ? 's' : '' %></b>
+              will clear all debts in this group — minimised using debt simplification.
+            </p>
+
+            <div class="txn-list">
+              <% transactions.forEach(txn => { %>
+                <%
+                  const iPay     = txn.from._id.toString() === user._id.toString();
+                  const iReceive = txn.to._id.toString()   === user._id.toString();
+                %>
+                <div class="txn-card <%= iPay ? 'i-pay' : iReceive ? 'i-receive' : '' %>">
+                  <div class="txn-avatar">
+                    <img src="https://api.dicebear.com/7.x/bottts/svg?seed=<%= txn.from.userName %>" alt="<%= txn.from.userName %>" />
+                  </div>
+                  <div class="txn-middle">
+                    <div class="txn-person">
+                      <div class="txn-person-name <%= iPay ? 'me' : '' %>"><%= iPay ? 'You' : txn.from.userName %></div>
+                    </div>
+                    <div class="txn-verb">
+                      <div class="txn-verb-arrow"></div>
+                      <div class="txn-verb-label">pays</div>
+                    </div>
+                    <div class="txn-person">
+                      <div class="txn-person-name <%= iReceive ? 'me' : '' %>"><%= iReceive ? 'You' : txn.to.userName %></div>
+                    </div>
+                  </div>
+                  <div class="txn-right">
+                    <div class="txn-figure <%= iPay ? 'i-pay-amt' : iReceive ? 'i-receive-amt' : '' %>">
+                      ₹<%= txn.amount.toLocaleString('en-IN') %>
+                    </div>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+
+            <!-- RECORD SETTLEMENT -->
+            <div class="record-form">
+              <div class="record-title">Record a payment</div>
+              <form action="/groups/<%= group._id %>/settle" method="POST">
+                <div class="record-fields">
+                  <div>
+                    <label class="field-label" for="paidTo">Paid to</label>
+                    <select class="field-select" id="paidTo" name="paidTo" required>
+                      <option value="" disabled selected>Select person</option>
+                      <% group.members.filter(m => m._id.toString() !== user._id.toString()).forEach(m => { %>
+                        <option value="<%= m._id %>"><%= m.userName %></option>
+                      <% }) %>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="field-label" for="amount">Amount (₹)</label>
+                    <input class="field-input-sm" type="number" id="amount" name="amount" placeholder="0" min="1" step="0.01" required />
+                  </div>
+                  <button type="submit" class="btn-primary">Record →</button>
+                </div>
+              </form>
+            </div>
+
+          <% } %>
+        </div>
+      </div>
+
+    </div><!-- end tabs wrapper -->
+  </div>
+</div>
+
+<script>
+  // cursor
+  const cur = document.getElementById('cursor');
+  document.addEventListener('mousemove', e => { cur.style.left = e.clientX + 'px'; cur.style.top = e.clientY + 'px'; });
+  document.querySelectorAll('button, a, input, select').forEach(el => {
+    el.addEventListener('mouseenter', () => { cur.style.width = '22px'; cur.style.height = '22px'; cur.style.opacity = '.5'; });
+    el.addEventListener('mouseleave', () => { cur.style.width = '10px'; cur.style.height = '10px'; cur.style.opacity = '1'; });
+  });
+
+  // hamburger
+  document.getElementById('hamburger').addEventListener('click', () => { document.getElementById('sidebar').classList.toggle('open'); });
+
+  // tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // open settle tab if url hash is #settle
+  if (window.location.hash === '#settle') {
+    document.querySelector('[data-tab="settle"]').click();
+  }
+
+  // copy invite link
+  function copyInviteLink() {
+    const url = document.getElementById('invite-url').textContent.trim();
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'Copied ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy Link'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+</script>
+</body>
+</html>

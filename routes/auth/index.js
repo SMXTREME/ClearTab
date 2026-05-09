@@ -1,9 +1,9 @@
 import validator from 'validator';
 
-import { json, Router } from 'express';
+import { Router } from 'express';
 
 import redis from '../../redis.js';
-import User from '../../schema/user.js';
+import User from '../../schema/User.js';
 import jwt from '../../functions/jwt.js';
 import sendOtpEmail from '../../functions/otpMailing.js';
 import sendWelcomeEmail from '../../functions/welcomeMailer.js';
@@ -29,6 +29,16 @@ authRouter.post('/send-otp', async (req, res) => {
         }
 
         const normalizedEmail = validator.normalizeEmail(trimmedEmail);
+
+        if (req.cookies?.authToken) {
+            const data = await jwt.read(req.cookies.authToken);
+            const cookieeEmail = data.email;
+
+            if (cookieeEmail === normalizedEmail) {
+                res.redirect('/dashboard');
+                return;
+            }
+        }
 
         const otpQuery = { email: normalizedEmail, error: undefined };
         const token = await jwt.write(otpQuery);
@@ -75,6 +85,16 @@ authRouter.post('/verify-otp', async (req, res) => {
                 newUserMail = true;
             }
 
+            await redis.del(email);
+
+            res.cookie(
+                'authToken',
+                await jwt.write({ email, userName: user.userName, userId: user._id }),
+                {
+                    maxAge: 7 * 24 * 60 * 60 * 1000,
+                },
+            );
+
             res.redirect('/dashboard');
 
             if (newUserMail) {
@@ -94,6 +114,11 @@ authRouter.post('/verify-otp', async (req, res) => {
     } catch (err) {
         console.log('Error in /auth/verify-otp:\n', err);
     }
+});
+
+authRouter.get('/logout', async (req, res) => {
+    res.clearCookie('authToken');
+    res.redirect('/');
 });
 
 export default authRouter;

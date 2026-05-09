@@ -15,7 +15,7 @@
       --border:    #1e1e1e;
       --border-lit:#2e2e2e;
       --text:      #e8e8e0;
-      --muted:     #555550;
+      --muted:     #8b8b76;
       --accent:    #c8f060;
       --accent-dim:#8faa40;
       --danger:    #ff5f5f;
@@ -31,6 +31,10 @@
       font-family: var(--sans);
       min-height: 100vh;
       overflow-x: hidden;
+      cursor: none;
+    }
+
+    a {
       cursor: none;
     }
 
@@ -74,6 +78,19 @@
       text-decoration: none;
     }
     .logo span { color: var(--accent); }
+    nav a.cta-nav {
+      font-family: var(--mono);
+      font-size: .78rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--bg);
+      background: var(--accent);
+      padding: .45rem 1rem;
+      border-radius: 2px;
+      text-decoration: none;
+      transition: background .2s;
+    }
+    nav a.cta-nav:hover { background: var(--accent-dim); }
 
     /* HERO */
     .hero {
@@ -320,6 +337,9 @@
 
 <nav>
   <a href="/" class="logo">ClearTab<span>.</span></a>
+  <% if (typeof cookie !== 'undefined' && cookie) { %>
+      <a href="/dashboard" class="cta-nav">Continue as <%= cookie.userName %></a>
+  <% } %>
 </nav>
 
 <section class="hero" id="auth">
@@ -356,7 +376,7 @@
         <span></span>
       </div>
 
-      <div class="auth-title">Welcome back.</div>
+      <div class="auth-title">Hello Welcome to Clear Tab.</div>
       <div class="auth-sub">No password. Just your email.</div>
 
       <% if (typeof error !== 'undefined' && error) { %>
@@ -386,22 +406,18 @@
 <!-- TICKER -->
 <div class="ticker-wrap">
   <div class="ticker">
-    <span>Split by percentage <b>✦</b></span>
+    <span>Split Equally or Per Person <b>✦</b></span>
     <span>Track group balances <b>✦</b></span>
-    <span>Settle with UPI <b>✦</b></span>
-    <span>Recurring bills <b>✦</b></span>
+    <span>Settle in minimum transactions<b>✦</b></span>
     <span>Trip expenses <b>✦</b></span>
     <span>No passwords <b>✦</b></span>
-    <span>Roommate tracking <b>✦</b></span>
-    <span>Works offline <b>✦</b></span>
-    <span>Split by percentage <b>✦</b></span>
+    <span>Works on all device <b>✦</b></span>
+    <span>Split Equally or Per Person <b>✦</b></span>
     <span>Track group balances <b>✦</b></span>
-    <span>Settle with UPI <b>✦</b></span>
-    <span>Recurring bills <b>✦</b></span>
+    <span>Settle in minimum transactions<b>✦</b></span>
     <span>Trip expenses <b>✦</b></span>
     <span>No passwords <b>✦</b></span>
-    <span>Roommate tracking <b>✦</b></span>
-    <span>Works offline <b>✦</b></span>
+    <span>Works on all device <b>✦</b></span>
   </div>
 </div>
 
@@ -409,8 +425,8 @@
 <section class="features">
   <div class="feature-item">
     <span class="feature-icon">⬡</span>
-    <div class="feature-title">Groups &amp; one-offs</div>
-    <p class="feature-desc">Create groups for trips or flats. Add one-time splits with anyone — no invite needed.</p>
+    <div class="feature-title">Easy Groups Creation</div>
+    <p class="feature-desc">Easily Create groups for trips or flats and divide expenses.</p>
   </div>
   <div class="feature-item">
     <span class="feature-icon">◈</span>
@@ -425,8 +441,8 @@
 </section>
 
 <footer>
-  <p>© 2025 ClearTab — made with intent.</p>
-  <p><a href="#">Privacy</a> &nbsp;·&nbsp; <a href="#">Terms</a> &nbsp;·&nbsp; <a href="#">GitHub</a></p>
+  <p>© 2026 ClearTab — made with intent by <b>SMXTREME</b>.</p>
+  <p><a href="https://github.com/SMXTREME/ClearTab" target="_blank">GitHub</a></p>
 </footer>
 
 <script>

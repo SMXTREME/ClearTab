@@ -62,11 +62,13 @@ If you did not request this OTP, please ignore this email.
 export default async function sendOtpEmail(toEmail, otp) {
     const template = otpEmailTemplate(otp);
 
-    await transporter.sendMail({
+    const response = await transporter.sendMail({
         from: `"Clear Tab" <${process.env.SMTP_USER}>`,
         to: toEmail,
         subject: template.subject,
         text: template.text,
         html: template.html,
     });
+
+    return response;
 }
