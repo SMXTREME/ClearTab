@@ -70,7 +70,7 @@ authRouter.post('/verify-otp', async (req, res) => {
 
         let { otp: actualOtp, tries: attempts } = redisData;
 
-        if (otpByUser === `${actualOtp}` && attempts < 3) {
+        if (`${otpByUser}` === `${actualOtp}` && attempts < 3) {
             let user = await User.findOne({ email });
             let newUserMail = false;
 
